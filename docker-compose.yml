@@ -1,0 +1,7 @@
+services:
+  app:
+    build: .
+    image: hetzner-api-ui
+    ports:
+      - "8080:80"
+    restart: unless-stopped

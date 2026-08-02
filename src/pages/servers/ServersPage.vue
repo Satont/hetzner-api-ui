@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { Plus, RefreshCw } from 'lucide-vue-next'
 import { useApi } from '@/composables/useApi'
 import { usePagedResource } from '@/composables/usePagedResource'
+import { formatHourly, formatMonthly, priceForLocation } from '@/lib/price'
 import type { Server } from './types'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import PaginationBar from '@/components/shared/PaginationBar.vue'
@@ -26,6 +27,16 @@ const { items, loading, error, pageInfo, reload } = usePagedResource<Server>(asy
 })
 
 const createOpen = ref(false)
+
+function serverPriceLabel(server: Server): string | null {
+  const price = priceForLocation(server.server_type.prices, server.location.name)
+  return price ? `${formatHourly(price.price_hourly.net)}/h` : null
+}
+
+function serverPriceTitle(server: Server): string | undefined {
+  const price = priceForLocation(server.server_type.prices, server.location.name)
+  return price ? `${formatMonthly(price.price_monthly.net)}/mo net in ${price.location}` : undefined
+}
 </script>
 
 <template>
@@ -51,6 +62,7 @@ const createOpen = ref(false)
             <TableHead>Status</TableHead>
             <TableHead>Public IPv4</TableHead>
             <TableHead>Type</TableHead>
+            <TableHead>Price</TableHead>
             <TableHead>Location</TableHead>
             <TableHead>Labels</TableHead>
             <TableHead>Created</TableHead>
@@ -59,11 +71,11 @@ const createOpen = ref(false)
         <TableBody>
           <template v-if="loading">
             <TableRow v-for="i in 5" :key="i">
-              <TableCell colspan="7"><Skeleton class="h-5 w-full" /></TableCell>
+              <TableCell colspan="8"><Skeleton class="h-5 w-full" /></TableCell>
             </TableRow>
           </template>
           <TableRow v-else-if="!items.length">
-            <TableCell colspan="7" class="py-8 text-center text-muted-foreground">No servers.</TableCell>
+            <TableCell colspan="8" class="py-8 text-center text-muted-foreground">No servers.</TableCell>
           </TableRow>
           <TableRow
             v-for="server in items"
@@ -76,6 +88,12 @@ const createOpen = ref(false)
             <TableCell><StatusBadge :status="server.status" /></TableCell>
             <TableCell class="font-mono text-xs">{{ server.public_net.ipv4?.ip ?? '—' }}</TableCell>
             <TableCell>{{ server.server_type.name }}</TableCell>
+            <TableCell>
+              <span v-if="serverPriceLabel(server)" :title="serverPriceTitle(server)">
+                {{ serverPriceLabel(server) }}
+              </span>
+              <span v-else class="text-muted-foreground">—</span>
+            </TableCell>
             <TableCell>{{ server.location.name }}</TableCell>
             <TableCell><LabelsBadges :labels="server.labels" /></TableCell>
             <TableCell class="text-muted-foreground">

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { runAction } from '@/composables/usePagedResource'
 import { parseLabels } from '@/lib/labels'
+import { formatHourly, formatMonthly, priceForLocation } from '@/lib/price'
 import type { operations } from '@/api/schema'
 import type { RequestBody } from '@/api/client'
 import type { Image, Location, Network, ServerType, SshKey } from './types'
@@ -85,6 +86,17 @@ const startAfterCreate = ref(true)
 const creating = ref(false)
 
 const selectedType = computed(() => serverTypes.value.find((t) => t.name === serverType.value))
+
+const selectedTypePrice = computed(() => {
+  const type = selectedType.value
+  if (!type) return null
+  return priceForLocation(type.prices, location.value || null)
+})
+
+function typePriceLabel(type: ServerType): string {
+  const price = priceForLocation(type.prices, null)
+  return price ? `from ${formatHourly(price.price_hourly.net)}/h` : 'no pricing'
+}
 
 const filteredImages = computed(() => {
   const arch = selectedType.value?.architecture
@@ -186,10 +198,18 @@ async function submit() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="type in serverTypes" :key="type.id" :value="type.name">
-                  {{ type.name }} — {{ type.cores }} vCPU / {{ type.memory }} GB / {{ type.disk }} GB
+                  {{ type.name }} — {{ type.cores }} vCPU / {{ type.memory }} GB / {{ type.disk }} GB ·
+                  {{ type.architecture }} · {{ typePriceLabel(type) }}
                 </SelectItem>
               </SelectContent>
             </Select>
+            <p v-if="selectedType" class="text-xs text-muted-foreground">
+              {{ selectedType.architecture }}
+              <template v-if="selectedTypePrice">
+                · {{ formatHourly(selectedTypePrice.price_hourly.net) }}/h ·
+                {{ formatMonthly(selectedTypePrice.price_monthly.net) }}/mo net ({{ selectedTypePrice.location }})
+              </template>
+            </p>
           </div>
 
           <div class="space-y-2">
@@ -200,7 +220,7 @@ async function submit() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="img in filteredImages" :key="img.id" :value="imageValue(img)">
-                  {{ imageLabel(img) }}
+                  {{ imageLabel(img) }} · {{ img.architecture }}
                 </SelectItem>
               </SelectContent>
             </Select>

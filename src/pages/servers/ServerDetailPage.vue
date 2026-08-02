@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ArrowLeft, RefreshCw, Trash2 } from 'lucide-vue-next'
 import { useApi, ApiError } from '@/composables/useApi'
 import { runAction } from '@/composables/usePagedResource'
+import { formatHourly, formatMonthly, priceForLocation } from '@/lib/price'
 import type { ServerDetail } from './types'
 import { formatBytes } from './types'
 import PageHeader from '@/components/shared/PageHeader.vue'
@@ -46,6 +47,12 @@ async function fetchServer() {
 }
 
 watch(() => props.id, fetchServer, { immediate: true })
+
+function priceLabel(current: ServerDetail): string | null {
+  const price = priceForLocation(current.server_type.prices, current.location.name)
+  if (!price) return null
+  return `${formatHourly(price.price_hourly.net)}/h · ${formatMonthly(price.price_monthly.net)}/mo (net, ${price.location})`
+}
 
 const deleteOpen = ref(false)
 
@@ -111,6 +118,7 @@ async function confirmDelete() {
               { label: 'Server type', value: `${server.server_type.name} (${server.server_type.description})` },
               { label: 'Image', value: server.image ? (server.image.name ?? server.image.description) : null },
               { label: 'Location', value: `${server.location.name} — ${server.location.description}` },
+              { label: 'Price', value: priceLabel(server) },
               { label: 'Placement group', value: server.placement_group?.name },
               { label: 'ISO', value: server.iso ? (server.iso.name ?? server.iso.description) : null },
               { label: 'Rescue enabled', value: server.rescue_enabled ? 'Yes' : 'No' },

@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { MoreHorizontal, Plus, RefreshCw } from 'lucide-vue-next'
 import { useApi } from '@/composables/useApi'
+import { usePricing } from '@/composables/usePricing'
+import { formatMonthly } from '@/lib/price'
 import { usePagedResource, runAction } from '@/composables/usePagedResource'
 import { parseLabels, labelsToText } from '@/lib/labels'
 import type { ListItem, RequestBody } from '@/api/client'
@@ -53,7 +55,10 @@ const { items, loading, error, pageInfo, reload } = usePagedResource<FloatingIp>
 // --- locations for the create dialog ---
 const locations = ref<LocationItem[]>([])
 
+const { pricing, load: loadPricing } = usePricing()
+
 onMounted(async () => {
+  void loadPricing()
   await runAction(async () => {
     const data = unwrap(await client().GET('/locations'))
     locations.value = data.locations ?? []
@@ -67,6 +72,18 @@ function dnsPtrSummary(ip: FloatingIp): string {
   const rest = entries.length > 1 ? ` (+${entries.length - 1})` : ''
   return `${first.dns_ptr}${rest}`
 }
+
+// Monthly price for the selected type + location (cheapest location as fallback).
+const createPriceLabel = computed(() => {
+  const entry = (pricing.value?.floating_ips ?? []).find((e) => e.type === createType.value)
+  const prices = entry?.prices ?? []
+  if (!prices.length) return null
+  const exact = createLocation.value ? prices.find((p) => p.location === createLocation.value) : undefined
+  const cheapest = prices.reduce((min, p) => (Number(p.price_monthly.net) < Number(min.price_monthly.net) ? p : min))
+  const price = exact ?? cheapest
+  const prefix = exact ? '' : 'from '
+  return `${prefix}${formatMonthly(price.price_monthly.net)}/mo (${price.location})`
+})
 
 // --- create ---
 const createOpen = ref(false)
@@ -347,6 +364,7 @@ async function confirmDelete() {
             <Label for="fip-server">Server ID</Label>
             <Input id="fip-server" v-model="createServer" type="number" min="1" required />
           </div>
+          <p v-if="createPriceLabel" class="text-xs text-muted-foreground">{{ createPriceLabel }}</p>
           <div class="space-y-2">
             <Label for="fip-description">Description</Label>
             <Input id="fip-description" v-model="createDescription" />

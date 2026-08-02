@@ -33,9 +33,9 @@ function serverPriceLabel(server: Server): string | null {
   return price ? `${formatHourly(price.price_hourly.net)}/h` : null
 }
 
-function serverPriceTitle(server: Server): string | undefined {
+function serverMonthlyLabel(server: Server): string | null {
   const price = priceForLocation(server.server_type.prices, server.location.name)
-  return price ? `${formatMonthly(price.price_monthly.net)}/mo net in ${price.location}` : undefined
+  return price ? `${formatMonthly(price.price_monthly.net)}/mo` : null
 }
 </script>
 
@@ -89,9 +89,10 @@ function serverPriceTitle(server: Server): string | undefined {
             <TableCell class="font-mono text-xs">{{ server.public_net.ipv4?.ip ?? '—' }}</TableCell>
             <TableCell>{{ server.server_type.name }}</TableCell>
             <TableCell>
-              <span v-if="serverPriceLabel(server)" :title="serverPriceTitle(server)">
-                {{ serverPriceLabel(server) }}
-              </span>
+              <template v-if="serverPriceLabel(server)">
+                <div>{{ serverPriceLabel(server) }}</div>
+                <div class="text-xs text-muted-foreground">{{ serverMonthlyLabel(server) }}</div>
+              </template>
               <span v-else class="text-muted-foreground">—</span>
             </TableCell>
             <TableCell>{{ server.location.name }}</TableCell>

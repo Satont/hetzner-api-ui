@@ -3,7 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { MoreHorizontal, Plus, RefreshCw } from 'lucide-vue-next'
 import { useApi } from '@/composables/useApi'
 import { usePagedResource, runAction } from '@/composables/usePagedResource'
+import { usePricing } from '@/composables/usePricing'
 import { parseLabels, labelsToText } from '@/lib/labels'
+import { formatHourly, formatMonthly } from '@/lib/price'
 import type { ListItem, RequestBody } from '@/api/client'
 import type { operations } from '@/api/schema'
 import PageHeader from '@/components/shared/PageHeader.vue'
@@ -52,11 +54,26 @@ const { items, loading, error, pageInfo, reload } = usePagedResource<Volume>(asy
 // --- locations for the create dialog ---
 const locations = ref<LocationItem[]>([])
 
+const { pricing, load: loadPricing } = usePricing()
+
 onMounted(async () => {
+  void loadPricing()
   await runAction(async () => {
     const data = unwrap(await client().GET('/locations'))
     locations.value = data.locations ?? []
   })
+})
+
+const volumeMonthlyEstimate = computed(() => {
+  const perGb = pricing.value?.volume?.price_per_gb_month?.net
+  const size = Number(createSize.value)
+  if (!perGb || !Number.isFinite(size) || size <= 0) return null
+  return size * Number(perGb)
+})
+
+const volumePerGbLabel = computed(() => {
+  const perGb = pricing.value?.volume?.price_per_gb_month?.net
+  return perGb ? formatHourly(Number(perGb)) : null
 })
 
 // --- create ---
@@ -318,6 +335,10 @@ async function confirmDelete() {
           <div class="space-y-2">
             <Label for="vol-size">Size (GB)</Label>
             <Input id="vol-size" v-model="createSize" type="number" min="10" max="10240" required />
+            <p v-if="volumeMonthlyEstimate !== null" class="text-xs text-muted-foreground">
+              ≈ {{ formatMonthly(volumeMonthlyEstimate) }}/mo
+              <template v-if="volumePerGbLabel">({{ volumePerGbLabel }}/GB/mo)</template>
+            </p>
           </div>
           <div class="space-y-2">
             <Label for="vol-mode">Create in</Label>

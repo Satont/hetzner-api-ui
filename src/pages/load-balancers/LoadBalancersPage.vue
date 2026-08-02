@@ -4,6 +4,7 @@ import { Plus, RefreshCw } from 'lucide-vue-next'
 import { useApi } from '@/composables/useApi'
 import { usePagedResource, runAction } from '@/composables/usePagedResource'
 import { parseLabels } from '@/lib/labels'
+import { formatHourly, formatMonthly, priceForLocation } from '@/lib/price'
 import type { ListItem, RequestBody } from '@/api/client'
 import type { operations } from '@/api/schema'
 import PageHeader from '@/components/shared/PageHeader.vue'
@@ -56,6 +57,19 @@ const locations = ref<Location[]>([])
 const createDataLoading = ref(false)
 
 const networkZones = computed(() => [...new Set(locations.value.map((l) => l.network_zone))])
+
+const selectedCreateType = computed(() => lbTypes.value.find((t) => t.name === createType.value))
+
+const createTypePrice = computed(() => {
+  const type = selectedCreateType.value
+  if (!type) return null
+  return priceForLocation(type.prices, placementMode.value === 'location' ? createLocation.value : null)
+})
+
+function lbTypePriceLabel(type: LBType): string {
+  const price = priceForLocation(type.prices, null)
+  return price ? `from ${formatHourly(price.price_hourly.net)}/h` : 'no pricing'
+}
 
 watch(createOpen, async (isOpen) => {
   if (!isOpen || createDataLoading.value) return
@@ -196,9 +210,15 @@ function handleDeleted() {
             <Select v-model="createType">
               <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
               <SelectContent>
-                <SelectItem v-for="t in lbTypes" :key="t.id" :value="t.name">{{ t.name }} — {{ t.description }}</SelectItem>
+                <SelectItem v-for="t in lbTypes" :key="t.id" :value="t.name">
+                  {{ t.name }} — {{ t.description }} · {{ lbTypePriceLabel(t) }}
+                </SelectItem>
               </SelectContent>
             </Select>
+            <p v-if="createTypePrice" class="text-xs text-muted-foreground">
+              {{ formatHourly(createTypePrice.price_hourly.net) }}/h ·
+              {{ formatMonthly(createTypePrice.price_monthly.net) }}/mo net ({{ createTypePrice.location }})
+            </p>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">

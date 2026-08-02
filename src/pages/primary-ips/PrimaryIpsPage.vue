@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { MoreHorizontal, Plus, RefreshCw } from 'lucide-vue-next'
 import { useApi } from '@/composables/useApi'
 import { usePricing } from '@/composables/usePricing'
+import MaskedValue from '@/components/shared/MaskedValue.vue'
 import { formatHourly, formatMonthly } from '@/lib/price'
 import { usePagedResource, runAction } from '@/composables/usePagedResource'
 import { parseLabels, labelsToText } from '@/lib/labels'
@@ -320,7 +321,7 @@ async function confirmDelete() {
             <TableCell colspan="9" class="py-8 text-center text-muted-foreground">No primary IPs.</TableCell>
           </TableRow>
           <TableRow v-for="ip in items" v-else :key="ip.id" class="cursor-pointer" @click="openDetail(ip)">
-            <TableCell class="font-medium font-mono text-xs">{{ ip.ip }}</TableCell>
+            <TableCell class="font-medium"><MaskedValue :value="ip.ip" /></TableCell>
             <TableCell><Badge variant="secondary">{{ ip.type }}</Badge></TableCell>
             <TableCell class="max-w-48 truncate" :title="dnsPtrSummary(ip)">{{ dnsPtrSummary(ip) }}</TableCell>
             <TableCell>{{ ip.location?.name ?? '—' }}</TableCell>
@@ -439,7 +440,7 @@ async function confirmDelete() {
             :items="[
               { label: 'ID', value: selected.id },
               { label: 'Name', value: selected.name },
-              { label: 'IP', value: selected.ip },
+              { label: 'IP', value: selected.ip, mask: true },
               { label: 'Type', value: selected.type },
               { label: 'DNS PTR', value: dnsPtrSummary(selected) },
               { label: 'Location', value: selected.location?.name },

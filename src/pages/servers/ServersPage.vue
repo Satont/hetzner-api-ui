@@ -10,6 +10,7 @@ import PageHeader from '@/components/shared/PageHeader.vue'
 import PaginationBar from '@/components/shared/PaginationBar.vue'
 import ErrorState from '@/components/shared/ErrorState.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
+import MaskedValue from '@/components/shared/MaskedValue.vue'
 import LabelsBadges from '@/components/shared/LabelsBadges.vue'
 import CreateServerDialog from './CreateServerDialog.vue'
 import { Button } from '@/components/ui/button'
@@ -86,7 +87,7 @@ function serverMonthlyLabel(server: Server): string | null {
           >
             <TableCell class="font-medium">{{ server.name }}</TableCell>
             <TableCell><StatusBadge :status="server.status" /></TableCell>
-            <TableCell class="font-mono text-xs">{{ server.public_net.ipv4?.ip ?? '—' }}</TableCell>
+            <TableCell><MaskedValue :value="server.public_net.ipv4?.ip" /></TableCell>
             <TableCell>{{ server.server_type.name }}</TableCell>
             <TableCell>
               <template v-if="serverPriceLabel(server)">

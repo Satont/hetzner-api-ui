@@ -428,14 +428,15 @@ async function loadMetrics() {
           :items="[
             { label: 'ID', value: lb.id },
             { label: 'Name', value: lb.name },
-            { label: 'Public IPv4', value: lb.public_net.ipv4.ip },
+            { label: 'Public IPv4', value: lb.public_net.ipv4.ip, mask: true },
             { label: 'IPv4 DNS PTR', value: lb.public_net.ipv4.dns_ptr },
-            { label: 'Public IPv6', value: lb.public_net.ipv6.ip },
+            { label: 'Public IPv6', value: lb.public_net.ipv6.ip, mask: true },
             { label: 'IPv6 DNS PTR', value: lb.public_net.ipv6.dns_ptr },
             { label: 'Public interface', value: lb.public_net.enabled ? 'enabled' : 'disabled' },
             {
               label: 'Private networks',
               value: lb.private_net.length ? lb.private_net.map((n) => `#${n.network} · ${n.ip}`).join(', ') : null,
+              mask: true,
             },
             { label: 'Type', value: `${lb.load_balancer_type.name} (${lb.load_balancer_type.description})` },
             { label: 'Location', value: `${lb.location.name} · ${lb.location.city}, ${lb.location.country}` },

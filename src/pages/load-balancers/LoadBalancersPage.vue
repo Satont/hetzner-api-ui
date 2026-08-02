@@ -5,6 +5,7 @@ import { useApi } from '@/composables/useApi'
 import { usePagedResource, runAction } from '@/composables/usePagedResource'
 import { parseLabels } from '@/lib/labels'
 import { formatHourly, formatMonthly, priceForLocation } from '@/lib/price'
+import MaskedValue from '@/components/shared/MaskedValue.vue'
 import type { ListItem, RequestBody } from '@/api/client'
 import type { operations } from '@/api/schema'
 import PageHeader from '@/components/shared/PageHeader.vue'
@@ -180,7 +181,7 @@ function handleDeleted() {
           </TableRow>
           <TableRow v-for="lb in items" v-else :key="lb.id" class="cursor-pointer" @click="openDetail(lb)">
             <TableCell class="font-medium">{{ lb.name }}</TableCell>
-            <TableCell class="font-mono text-xs">{{ lb.public_net.ipv4.ip ?? '—' }}</TableCell>
+            <TableCell><MaskedValue :value="lb.public_net.ipv4.ip" /></TableCell>
             <TableCell><span class="font-mono text-xs">{{ lb.algorithm.type }}</span></TableCell>
             <TableCell>{{ lb.location.name }}</TableCell>
             <TableCell>{{ lb.services.length }}</TableCell>

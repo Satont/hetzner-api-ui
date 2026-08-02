@@ -107,13 +107,14 @@ async function confirmDelete() {
             :items="[
               { label: 'ID', value: server.id },
               { label: 'Status', value: server.status },
-              { label: 'Public IPv4', value: server.public_net.ipv4?.ip },
-              { label: 'Public IPv6', value: server.public_net.ipv6?.ip },
+              { label: 'Public IPv4', value: server.public_net.ipv4?.ip, mask: true },
+              { label: 'Public IPv6', value: server.public_net.ipv6?.ip, mask: true },
               {
                 label: 'Private networks',
                 value: server.private_net.length
                   ? server.private_net.map((net) => `${net.ip ?? '—'} (net ${net.network ?? '—'})`).join(', ')
                   : null,
+                mask: true,
               },
               { label: 'Server type', value: `${server.server_type.name} (${server.server_type.description})` },
               { label: 'Image', value: server.image ? (server.image.name ?? server.image.description) : null },

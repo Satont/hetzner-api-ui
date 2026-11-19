@@ -2,7 +2,6 @@
 import {
   Activity,
   Award,
-  FolderCog,
   Globe,
   HardDrive,
   KeyRound,
@@ -78,7 +77,6 @@ const groups: NavGroup[] = [
     label: 'Meta',
     items: [
       { title: 'Locations', to: '/locations', icon: MapPin },
-      { title: 'Datacenters', to: '/datacenters', icon: FolderCog },
       { title: 'Pricing', to: '/pricing', icon: Tag },
       { title: 'Actions', to: '/actions', icon: Activity },
     ],

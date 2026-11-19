@@ -7,7 +7,7 @@ import MaskedValue from '@/components/shared/MaskedValue.vue'
 import { formatHourly, formatMonthly } from '@/lib/price'
 import { usePagedResource, runAction } from '@/composables/usePagedResource'
 import { parseLabels, labelsToText } from '@/lib/labels'
-import type { ListItem, RequestBody } from '@/api/client'
+import type { ListItem, RequestBody, ResponseBody } from '@/api/client'
 import type { operations } from '@/api/schema'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import PaginationBar from '@/components/shared/PaginationBar.vue'
@@ -44,7 +44,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 
 type PrimaryIp = ListItem<operations['list_primary_ips'], 'primary_ips'>
-type DatacenterItem = ListItem<operations['list_datacenters'], 'datacenters'>
+type LocationItem = ListItem<operations['list_locations'], 'locations'>
 
 const { client, unwrap } = useApi()
 
@@ -53,18 +53,35 @@ const { items, loading, error, pageInfo, reload } = usePagedResource<PrimaryIp>(
   return { items: data.primary_ips ?? [], pagination: data.meta?.pagination ?? {} }
 })
 
-// --- datacenters for the create dialog ---
-const datacenters = ref<DatacenterItem[]>([])
+const locations = ref<LocationItem[]>([])
+const locationsLoading = ref(false)
+const locationsError = ref<string | null>(null)
+
+async function loadLocations() {
+  locationsLoading.value = true
+  locationsError.value = null
+  try {
+    const api = client()
+    const allLocations: LocationItem[] = []
+    let page: number | null = 1
+    while (page !== null) {
+      const data: ResponseBody<operations['list_locations']> = unwrap(
+        await api.GET('/locations', { params: { query: { page, per_page: 100 } } }),
+      )
+      allLocations.push(...data.locations)
+      page = data.meta?.pagination?.next_page ?? null
+    }
+    locations.value = allLocations
+  } catch {
+    locationsError.value = 'Could not load locations.'
+  } finally {
+    locationsLoading.value = false
+  }
+}
 
 const { pricing, load: loadPricing } = usePricing()
 
-onMounted(async () => {
-  void loadPricing()
-  await runAction(async () => {
-    const data = unwrap(await client().GET('/datacenters'))
-    datacenters.value = data.datacenters ?? []
-  })
-})
+onMounted(() => void loadPricing())
 
 function dnsPtrSummary(ip: PrimaryIp): string {
   const entries = ip.dns_ptr ?? []
@@ -74,47 +91,51 @@ function dnsPtrSummary(ip: PrimaryIp): string {
   return `${first.dns_ptr}${rest}`
 }
 
-// Hourly + monthly price for the selected type at the chosen datacenter's location.
-const createPriceLabel = computed(() => {
-  const entry = (pricing.value?.primary_ips ?? []).find((e) => e.type === createType.value)
-  const prices = entry?.prices ?? []
-  if (!prices.length) return null
-  const locationName = createDatacenter.value
-    ? datacenters.value.find((dc) => dc.name === createDatacenter.value)?.location?.name
-    : undefined
-  const exact = locationName ? prices.find((p) => p.location === locationName) : undefined
-  const cheapest = prices.reduce((min, p) => (Number(p.price_hourly.net) < Number(min.price_hourly.net) ? p : min))
-  const price = exact ?? cheapest
-  const prefix = exact ? '' : 'from '
-  return `${prefix}${formatHourly(price.price_hourly.net)}/h · ${formatMonthly(price.price_monthly.net)}/mo (${price.location})`
-})
-
 // --- create ---
 const createOpen = ref(false)
 const createType = ref('ipv4')
 const createName = ref('')
-const createMode = ref('datacenter')
-const createDatacenter = ref('')
+const createMode = ref('location')
+const createLocation = ref('')
 const createAssignee = ref('')
 const createAutoDelete = ref(false)
 const createLabels = ref('')
 const creating = ref(false)
 
+function openCreate() {
+  createOpen.value = true
+  if (!locations.value.length && !locationsLoading.value) void loadLocations()
+}
+
+const createPriceLabel = computed(() => {
+  const prices = pricing.value?.primary_ips?.find((entry) => entry.type === createType.value)?.prices ?? []
+  if (!prices.length) return null
+  const location = createMode.value === 'location' ? createLocation.value : ''
+  const price = location
+    ? prices.find((entry) => entry.location === location)
+    : prices.reduce((min, entry) => (Number(entry.price_hourly.net) < Number(min.price_hourly.net) ? entry : min))
+  if (!price) return null
+  const prefix = location ? '' : 'from '
+  return `${prefix}${formatHourly(price.price_hourly.net)}/h · ${formatMonthly(price.price_monthly.net)}/mo (${price.location})`
+})
+
 const createValid = computed(() => {
   if (!createName.value.trim()) return false
-  if (createMode.value === 'datacenter') return !!createDatacenter.value
-  return !!Number(createAssignee.value)
+  if (createMode.value === 'location') return !!createLocation.value
+  const assignee = Number(createAssignee.value)
+  return Number.isSafeInteger(assignee) && assignee > 0
 })
 
 async function submitCreate() {
+  if (creating.value || !createValid.value) return
   creating.value = true
   const result = await runAction(async () => {
     const labels = parseLabels(createLabels.value)
     const body: RequestBody<operations['create_primary_ip']> = {
       name: createName.value.trim(),
       type: createType.value === 'ipv6' ? 'ipv6' : 'ipv4',
-      ...(createMode.value === 'datacenter'
-        ? { location: datacenters.value.find((dc) => dc.name === createDatacenter.value)?.location?.name ?? '' }
+      ...(createMode.value === 'location'
+        ? { location: createLocation.value }
         : { assignee_type: 'server' as const, assignee_id: Number(createAssignee.value) }),
       ...(createAutoDelete.value ? { auto_delete: true } : {}),
       ...(Object.keys(labels).length ? { labels } : {}),
@@ -126,8 +147,8 @@ async function submitCreate() {
     createOpen.value = false
     createType.value = 'ipv4'
     createName.value = ''
-    createMode.value = 'datacenter'
-    createDatacenter.value = ''
+    createMode.value = 'location'
+    createLocation.value = ''
     createAssignee.value = ''
     createAutoDelete.value = false
     createLabels.value = ''
@@ -288,7 +309,7 @@ async function confirmDelete() {
         <RefreshCw class="mr-2 size-4" />
         Refresh
       </Button>
-      <Button size="sm" @click="createOpen = true">
+      <Button size="sm" @click="openCreate">
         <Plus class="mr-2 size-4" />
         Create primary IP
       </Button>
@@ -350,7 +371,7 @@ async function confirmDelete() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create primary IP</DialogTitle>
-          <DialogDescription>Bind to a datacenter or assign directly to a server — not both.</DialogDescription>
+          <DialogDescription>Choose a location for an unassigned IP, or assign it directly to a server.</DialogDescription>
         </DialogHeader>
         <form class="space-y-4" @submit.prevent="submitCreate">
           <div class="space-y-2">
@@ -372,21 +393,24 @@ async function confirmDelete() {
             <Select v-model="createMode">
               <SelectTrigger id="pip-mode"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="datacenter">Datacenter</SelectItem>
+                <SelectItem value="location">Location</SelectItem>
                 <SelectItem value="assignee">Server (assign on create)</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div v-if="createMode === 'datacenter'" class="space-y-2">
-            <Label for="pip-datacenter">Datacenter</Label>
-            <Select v-model="createDatacenter">
-              <SelectTrigger id="pip-datacenter"><SelectValue placeholder="Select a datacenter" /></SelectTrigger>
+          <div v-if="createMode === 'location'" class="space-y-2">
+            <Label for="pip-location">Location</Label>
+            <Select v-model="createLocation" :disabled="!locations.length">
+              <SelectTrigger id="pip-location"><SelectValue placeholder="Select a location" /></SelectTrigger>
               <SelectContent>
-                <SelectItem v-for="dc in datacenters" :key="dc.id" :value="dc.name">
-                  {{ dc.name }} — {{ dc.description }}
+                <SelectItem v-for="location in locations" :key="location.id" :value="location.name">
+                  {{ location.name }} — {{ location.description }}
                 </SelectItem>
               </SelectContent>
             </Select>
+            <p v-if="locationsLoading" role="status" class="text-sm text-muted-foreground">Loading locations…</p>
+            <ErrorState v-else-if="locationsError" :error="locationsError" @retry="loadLocations" />
+            <p v-else-if="!locations.length" class="text-sm text-muted-foreground">No locations available.</p>
           </div>
           <div v-else class="space-y-2">
             <Label for="pip-assignee">Server ID (assignee)</Label>

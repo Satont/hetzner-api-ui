@@ -23,7 +23,7 @@ const router = createRouter({
     { path: '/zones', component: () => import('@/pages/zones/ZonesPage.vue') },
     { path: '/zones/:id', component: () => import('@/pages/zones/ZoneDetailPage.vue'), props: true },
     { path: '/locations', component: () => import('@/pages/locations/LocationsPage.vue') },
-    { path: '/datacenters', component: () => import('@/pages/datacenters/DatacentersPage.vue') },
+    { path: '/datacenters', redirect: '/locations' },
     { path: '/pricing', component: () => import('@/pages/pricing/PricingPage.vue') },
     { path: '/actions', component: () => import('@/pages/actions/ActionsPage.vue') },
   ],

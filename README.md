@@ -10,7 +10,7 @@ A single-page web UI for the [Hetzner Cloud API](https://docs.hetzner.cloud/) bu
   - **Storage**: volumes (attach/detach/resize)
   - **Network**: networks (subnets, routes), firewalls (rule editor, resource assignment), floating IPs, primary IPs, load balancers (services, targets, metrics), load balancer types, certificates (managed + uploaded)
   - **DNS**: zones (primary/secondary, zonefile import/export, TSIG primaries) and rrsets (full record management)
-  - **Meta**: locations, datacenters, pricing, actions
+  - **Meta**: locations, pricing, actions
 - Server list and creation flow show **hourly/monthly prices** per location and **CPU architecture (x86/arm)**.
 - Light/dark theme toggle (persisted).
 - Toasted error handling with normalized API error messages.
